@@ -1,0 +1,18 @@
+services:
+  backend:
+    build: ../backend
+    volumes:
+      - ../data:/data
+    environment:
+      VMS_DATABASE_URL: sqlite:////data/app.db
+      VMS_STORAGE_ROOT: /data/releases
+      VMS_SECRET_KEY: change-me-in-production
+    restart: unless-stopped
+
+  frontend:
+    build: ../frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

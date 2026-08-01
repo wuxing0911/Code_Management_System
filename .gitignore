@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+frontend/dist/
+data/app.db
+data/releases/*
+!data/releases/.gitkeep
+*.log
