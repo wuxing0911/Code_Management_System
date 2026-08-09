@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import User
+from app.permissions import effective_permissions
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -67,9 +68,9 @@ async def get_current_user(
     return user
 
 
-def require_roles(*roles: str):
+def require_permission(permission: str):
     async def checker(user: Annotated[User, Depends(get_current_user)]) -> User:
-        if user.role not in roles:
+        if permission not in effective_permissions(user):
             raise HTTPException(status_code=403, detail="权限不足")
         return user
 

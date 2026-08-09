@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, BigInteger
+from sqlalchemy import Boolean, String, Text, Integer, DateTime, ForeignKey, BigInteger, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -17,6 +17,23 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     versions = relationship("Version", back_populates="uploader")
+    permission_overrides = relationship(
+        "UserPermission",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+
+class UserPermission(Base):
+    __tablename__ = "user_permissions"
+    __table_args__ = (UniqueConstraint("user_id", "permission", name="uq_user_permission"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    permission: Mapped[str] = mapped_column(String(64))
+    allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    user = relationship("User", back_populates="permission_overrides")
 
 
 class Product(Base):

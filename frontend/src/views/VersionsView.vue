@@ -11,20 +11,20 @@
         <h1 class="page-title">{{ product?.name }} · 版本预览</h1>
         <p class="page-sub">当前产品共有 {{ versions.length }} 个版本；点击版本查看文件与工程内容。</p>
       </div>
-      <el-button v-if="canUpload()" type="primary" @click="showCreate = true">新建版本</el-button>
+      <el-button v-if="canManageVersions()" type="primary" @click="showCreate = true">新建版本</el-button>
     </div>
 
     <el-row :gutter="14" class="stats-row">
       <el-col :xs="12" :sm="8">
         <div class="stat-card">
           <span>版本数量</span>
-          <strong>{{ versions.length }}</strong>
+          <strong><AnimatedNumber :value="versions.length" /></strong>
         </div>
       </el-col>
       <el-col :xs="12" :sm="8">
         <div class="stat-card blue">
           <span>文件总数</span>
-          <strong>{{ fileTotal }}</strong>
+          <strong><AnimatedNumber :value="fileTotal" /></strong>
         </div>
       </el-col>
       <el-col :xs="24" :sm="8">
@@ -54,7 +54,7 @@
       <el-table-column label="更新时间" width="180">
         <template #default="{ row }">{{ formatTime(row.updated_at) }}</template>
       </el-table-column>
-      <el-table-column v-if="canUpload()" label="管理" width="150" align="center">
+      <el-table-column v-if="canManageVersions()" label="管理" width="150" align="center">
         <template #default="{ row }">
           <div class="row-actions" @click.stop>
             <el-button text type="primary" @click="openEdit(row)">编辑</el-button>
@@ -111,12 +111,13 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
+import AnimatedNumber from '../components/AnimatedNumber.vue'
 import AppLayout from '../components/AppLayout.vue'
 import { useAuth } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
-const { canUpload } = useAuth()
+const { canManageVersions } = useAuth()
 const product = ref(null)
 const versions = ref([])
 const showCreate = ref(false)
@@ -276,20 +277,23 @@ onMounted(load)
   content: '';
 }
 
-.stat-card span,
-.stat-card strong {
+.stat-card > span,
+.stat-card > strong {
   display: block;
 }
 
-.stat-card span {
-  color: var(--color-muted);
-  font-size: 12px;
+.stat-card > span {
+  color: #365f67;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.stat-card strong {
-  margin-top: 6px;
-  color: var(--color-primary-dark);
-  font-size: 27px;
+.stat-card > strong {
+  margin-top: 8px;
+  color: #075c61;
+  font-size: 36px;
+  font-weight: 750;
   line-height: 1.1;
 }
 
@@ -298,11 +302,11 @@ onMounted(load)
   background: #f0f9ff;
 }
 
-.stat-card.blue strong {
+.stat-card.blue > strong {
   color: #0369a1;
 }
 
-.stat-card .version-name {
+.stat-card > .version-name {
   overflow: hidden;
   font-size: 19px;
   text-overflow: ellipsis;

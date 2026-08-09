@@ -5,6 +5,14 @@ from pydantic import BaseModel, Field
 
 
 Role = Literal["admin", "developer", "tester"]
+Permission = Literal[
+    "manage_users",
+    "manage_products",
+    "manage_versions",
+    "upload_files",
+    "download_files",
+    "delete_files",
+]
 
 
 class Token(BaseModel):
@@ -25,17 +33,20 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(min_length=4)
+    permissions: list[Permission] | None = None
 
 
 class UserUpdate(BaseModel):
     role: Role | None = None
     is_active: bool | None = None
     password: str | None = Field(default=None, min_length=4)
+    permissions: list[Permission] | None = None
 
 
 class UserOut(UserBase):
     id: int
     created_at: datetime
+    permissions: list[Permission] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

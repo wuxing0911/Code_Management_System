@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_roles
+from app.auth import get_current_user, require_permission
 from app.database import get_db
 from app.models import Product, User, Version
+from app.permissions import MANAGE_PRODUCTS
 from app.schemas import ProductCreate, ProductOut, ProductUpdate
 from app.services import storage
 from app.services.storage import slugify
@@ -41,7 +42,7 @@ def list_products(
 def create_product(
     body: ProductCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(MANAGE_PRODUCTS)),
 ):
     name = body.name.strip()
     if not name:
@@ -78,7 +79,7 @@ def update_product(
     product_id: int,
     body: ProductUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(MANAGE_PRODUCTS)),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
@@ -100,7 +101,7 @@ def update_product(
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(MANAGE_PRODUCTS)),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:

@@ -12,7 +12,7 @@
       <div class="actions">
         <el-input v-model="keyword" clearable placeholder="搜索产品" style="width: 220px" @clear="load" @keyup.enter="load" />
         <el-button type="primary" @click="load">搜索</el-button>
-        <el-button v-if="canUpload()" type="primary" plain @click="showCreate = true">新建产品</el-button>
+        <el-button v-if="canManageProducts()" type="primary" plain @click="showCreate = true">新建产品</el-button>
       </div>
     </div>
 
@@ -20,14 +20,14 @@
       <el-col :xs="24" :sm="12" :md="8">
         <div class="stat-card primary-stat">
           <span>产品总数</span>
-          <strong>{{ products.length }}</strong>
+          <strong><AnimatedNumber :value="products.length" /></strong>
           <small>已纳入版本管理的产品</small>
         </div>
       </el-col>
       <el-col :xs="24" :sm="12" :md="8">
         <div class="stat-card accent-stat">
           <span>版本总数</span>
-          <strong>{{ versionTotal }}</strong>
+          <strong><AnimatedNumber :value="versionTotal" /></strong>
           <small>所有产品下的可用版本</small>
         </div>
       </el-col>
@@ -57,7 +57,7 @@
         <p>{{ product.description || '暂未填写产品描述' }}</p>
         <footer>
           <span>创建于 {{ formatDate(product.created_at) }}</span>
-          <span class="card-actions" v-if="canUpload()">
+          <span class="card-actions" v-if="canManageProducts()">
             <el-button text type="primary" @click.stop="openEdit(product)">编辑</el-button>
             <el-button text type="danger" @click.stop="removeProduct(product)">删除</el-button>
           </span>
@@ -104,11 +104,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
+import AnimatedNumber from '../components/AnimatedNumber.vue'
 import AppLayout from '../components/AppLayout.vue'
 import { useAuth } from '../stores/auth'
 
 const router = useRouter()
-const { canUpload } = useAuth()
+const { canManageProducts } = useAuth()
 const products = ref([])
 const keyword = ref('')
 const showCreate = ref(false)
@@ -245,27 +246,31 @@ onMounted(load)
   content: '';
 }
 
-.stat-card span,
-.stat-card small,
-.stat-card strong {
+.stat-card > span,
+.stat-card > small,
+.stat-card > strong {
   display: block;
 }
 
-.stat-card span {
-  color: var(--color-muted);
+.stat-card > span {
+  color: #365f67;
   font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.stat-card strong {
-  margin: 8px 0;
-  color: var(--color-primary-dark);
-  font-size: 34px;
+.stat-card > strong {
+  margin: 10px 0 9px;
+  color: #075c61;
+  font-size: 42px;
+  font-weight: 750;
   line-height: 1;
 }
 
-.stat-card small {
-  color: var(--color-muted);
+.stat-card > small {
+  color: #71868b;
   font-size: 12px;
+  line-height: 1.45;
 }
 
 .accent-stat {
@@ -273,7 +278,7 @@ onMounted(load)
   background: linear-gradient(135deg, #fff, #f0f9ff);
 }
 
-.accent-stat strong {
+.accent-stat > strong {
   color: #0369a1;
 }
 
@@ -281,7 +286,7 @@ onMounted(load)
   background: linear-gradient(135deg, #fff, #f0fdfa);
 }
 
-.stat-card strong.latest-name {
+.stat-card > strong.latest-name {
   overflow: hidden;
   font-size: 22px;
   text-overflow: ellipsis;

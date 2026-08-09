@@ -20,11 +20,11 @@
         <p class="page-sub">按文件类型区分内容：程序代码为 bin/hex/LoP100；界面工程为 PKG 或 private 文件夹。</p>
       </div>
       <div class="actions">
-        <el-button :disabled="!selected.length" type="primary" @click="downloadSelected">
+        <el-button v-if="canDownload()" :disabled="!selected.length" type="primary" @click="downloadSelected">
           下载已选（{{ selected.length }}）
         </el-button>
         <el-button
-          v-if="canUpload()"
+          v-if="canDeleteFiles()"
           :disabled="!selected.length"
           type="danger"
           plain
@@ -32,7 +32,7 @@
         >
           删除已选（{{ selected.length }}）
         </el-button>
-        <el-button @click="downloadWhole">下载整版本</el-button>
+        <el-button v-if="canDownload()" @click="downloadWhole">下载整版本</el-button>
         <template v-if="canUpload()">
           <el-button type="primary" plain :loading="uploading" @click="pickCodeFiles">上传程序代码</el-button>
           <el-dropdown trigger="click" @command="onUiUploadCommand">
@@ -51,10 +51,10 @@
     </div>
 
     <div class="file-summary">
-      <div><span>当前目录</span><strong>{{ currentPathLabel }}</strong></div>
-      <div><span>文件夹</span><strong>{{ directoryCount }}</strong></div>
-      <div><span>文件</span><strong>{{ fileCount }}</strong></div>
-      <div class="selected-summary"><span>已勾选</span><strong>{{ selected.length }}</strong></div>
+      <div class="path-summary"><span>当前目录</span><strong>{{ currentPathLabel }}</strong></div>
+      <div><span>文件夹</span><strong><AnimatedNumber :value="directoryCount" /></strong></div>
+      <div><span>文件</span><strong><AnimatedNumber :value="fileCount" /></strong></div>
+      <div class="selected-summary"><span>已勾选</span><strong><AnimatedNumber :value="selected.length" :duration="350" /></strong></div>
     </div>
 
     <input
@@ -91,7 +91,7 @@
       empty-text="此目录暂无内容"
       @selection-change="onSelect"
     >
-      <el-table-column type="selection" width="48" />
+      <el-table-column v-if="canDownload() || canDeleteFiles()" type="selection" width="48" />
       <el-table-column label="名称" min-width="260">
         <template #default="{ row }">
           <button v-if="row.is_dir" class="name-btn folder" @click="enterPath(row.path)">
@@ -113,11 +113,16 @@
       <el-table-column label="大小" width="120">
         <template #default="{ row }">{{ row.is_dir ? '-' : formatSize(row.size) }}</template>
       </el-table-column>
-      <el-table-column label="操作" :width="canUpload() ? 168 : 88" align="center">
+      <el-table-column
+        v-if="canDownload() || canDeleteFiles()"
+        label="操作"
+        :width="canDownload() && canDeleteFiles() ? 168 : 88"
+        align="center"
+      >
         <template #default="{ row }">
-          <div class="row-actions" :class="{ 'with-delete': canUpload() }" @click.stop>
-            <el-button text type="primary" @click="downloadOne(row)">下载</el-button>
-            <el-button v-if="canUpload()" text type="danger" @click="deleteOne(row)">删除</el-button>
+          <div class="row-actions" :class="{ 'with-delete': canDeleteFiles() }" @click.stop>
+            <el-button v-if="canDownload()" text type="primary" @click="downloadOne(row)">下载</el-button>
+            <el-button v-if="canDeleteFiles()" text type="danger" @click="deleteOne(row)">删除</el-button>
           </div>
         </template>
       </el-table-column>
@@ -130,11 +135,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
+import AnimatedNumber from '../components/AnimatedNumber.vue'
 import AppLayout from '../components/AppLayout.vue'
 import { useAuth } from '../stores/auth'
 
 const route = useRoute()
-const { canUpload } = useAuth()
+const { canUpload, canDownload, canDeleteFiles } = useAuth()
 const product = ref(null)
 const version = ref(null)
 const nodes = ref([])
@@ -531,30 +537,40 @@ onMounted(async () => {
   border-right: 0;
 }
 
-.file-summary span,
-.file-summary strong {
+.file-summary > div > span,
+.file-summary > div > strong {
   display: block;
 }
 
-.file-summary span {
-  color: var(--color-muted);
-  font-size: 11px;
+.file-summary > div > span {
+  color: #486b72;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.file-summary strong {
+.file-summary > div > strong {
   overflow: hidden;
-  margin-top: 3px;
-  color: var(--color-primary-dark);
-  font-size: 16px;
+  margin-top: 5px;
+  color: #075c61;
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.file-summary > .path-summary > strong {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.65;
 }
 
 .selected-summary {
   background: #d5f4ee;
 }
 
-.selected-summary strong {
+.selected-summary > strong {
   color: #075c61;
 }
 

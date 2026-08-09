@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_roles
+from app.auth import get_current_user, require_permission
 from app.database import get_db
 from app.models import FileEntry, Product, User, Version
+from app.permissions import DELETE_FILES, DOWNLOAD_FILES, MANAGE_VERSIONS, UPLOAD_FILES
 from app.schemas import (
     DeleteSelectedRequest,
     DownloadSelectedRequest,
@@ -72,7 +73,7 @@ def create_version(
     product_id: int,
     body: VersionCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("admin", "developer")),
+    user: User = Depends(require_permission(MANAGE_VERSIONS)),
 ):
     product = get_product_or_404(db, product_id)
     name = body.name.strip()
@@ -115,7 +116,7 @@ def update_version(
     version_id: int,
     body: VersionUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(MANAGE_VERSIONS)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -151,7 +152,7 @@ def update_version(
 def delete_version(
     version_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(MANAGE_VERSIONS)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -199,7 +200,7 @@ async def upload_files(
     files: list[UploadFile] = File(...),
     paths: list[str] | None = Form(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(UPLOAD_FILES)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -219,7 +220,7 @@ async def upload_folder(
     files: list[UploadFile] = File(...),
     paths: list[str] = Form(...),
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(UPLOAD_FILES)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -236,7 +237,7 @@ async def upload_zip(
     version_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(UPLOAD_FILES)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -251,7 +252,7 @@ def download_selected(
     version_id: int,
     body: DownloadSelectedRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission(DOWNLOAD_FILES)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -280,7 +281,7 @@ def download_selected(
 def download_version(
     version_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission(DOWNLOAD_FILES)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -298,7 +299,7 @@ def delete_selected(
     version_id: int,
     body: DeleteSelectedRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "developer")),
+    _: User = Depends(require_permission(DELETE_FILES)),
 ):
     version = get_version_or_404(db, version_id)
     product = get_product_or_404(db, version.product_id)
@@ -314,7 +315,7 @@ def delete_selected(
 def download_file(
     file_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission(DOWNLOAD_FILES)),
 ):
     entry = db.query(FileEntry).filter(FileEntry.id == file_id).first()
     if not entry or entry.is_dir:

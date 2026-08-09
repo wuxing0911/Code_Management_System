@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.auth import authenticate_user, create_access_token, get_current_user
 from app.database import get_db
 from app.models import User
+from app.permissions import ordered_permissions
 from app.schemas import LoginRequest, Token, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -34,4 +35,5 @@ def me(user: User = Depends(get_current_user)):
         role=user.role,  # type: ignore[arg-type]
         is_active=bool(user.is_active),
         created_at=user.created_at,
+        permissions=ordered_permissions(user),
     )

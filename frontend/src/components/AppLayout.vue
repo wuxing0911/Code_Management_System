@@ -7,7 +7,7 @@
       </div>
       <div class="right">
         <span class="user">{{ userLabel }}</span>
-        <el-button v-if="isAdmin()" text type="primary" @click="$router.push('/users')">用户管理</el-button>
+        <el-button v-if="canManageUsers()" text type="primary" @click="$router.push('/users')">用户管理</el-button>
         <el-button text type="primary" @click="logout">退出</el-button>
       </div>
     </header>
@@ -17,7 +17,7 @@
           <router-link to="/" class="nav-item" :class="{ active: $route.name === 'products' }">
             产品总览
           </router-link>
-          <router-link v-if="isAdmin()" to="/users" class="nav-item" :class="{ active: $route.name === 'users' }">
+          <router-link v-if="canManageUsers()" to="/users" class="nav-item" :class="{ active: $route.name === 'users' }">
             用户管理
           </router-link>
         </nav>
@@ -25,8 +25,8 @@
         <section class="overview-panel">
           <span class="panel-caption"><i></i> 资源概览</span>
           <div class="overview-numbers">
-            <div><strong>{{ products.length }}</strong><small>产品</small></div>
-            <div><strong>{{ versionTotal }}</strong><small>版本</small></div>
+            <div><strong><AnimatedNumber :value="products.length" /></strong><small>产品</small></div>
+            <div><strong><AnimatedNumber :value="versionTotal" /></strong><small>版本</small></div>
           </div>
         </section>
 
@@ -74,11 +74,12 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../api'
+import AnimatedNumber from './AnimatedNumber.vue'
 import { useAuth } from '../stores/auth'
 
 const router = useRouter()
 const route = useRoute()
-const { state, clearAuth, isAdmin } = useAuth()
+const { state, clearAuth, canManageUsers } = useAuth()
 const products = ref([])
 const sidebarWidth = ref(Number(localStorage.getItem('sidebar-width')) || 250)
 
@@ -305,14 +306,17 @@ onBeforeUnmount(stopResize)
 }
 
 .overview-numbers strong {
-  color: #7af3dc;
-  font-size: 23px;
-  line-height: 1.15;
+  color: #8dffe9;
+  font-size: 30px;
+  font-weight: 750;
+  line-height: 1.05;
 }
 
 .overview-numbers small {
-  margin-top: 3px;
-  color: #91b8bc;
+  margin-top: 6px;
+  color: #a8c8ca;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .quick-products {

@@ -59,16 +59,18 @@ a {
 }
 
 .page-title {
-  margin: 0 0 4px;
-  font-size: 22px;
-  font-weight: 600;
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
   color: var(--color-text);
 }
 
 .page-sub {
   margin: 0 0 16px;
-  color: var(--color-muted);
+  color: #6f858a;
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .el-button {
