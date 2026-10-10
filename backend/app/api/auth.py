@@ -16,7 +16,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=400, detail="用户名或密码错误")
-    return Token(access_token=create_access_token(user.username))
+    return Token(access_token=create_access_token(user))
 
 
 @router.post("/login-json", response_model=Token)
@@ -24,7 +24,7 @@ def login_json(body: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, body.username, body.password)
     if not user:
         raise HTTPException(status_code=400, detail="用户名或密码错误")
-    return Token(access_token=create_access_token(user.username))
+    return Token(access_token=create_access_token(user))
 
 
 @router.get("/me", response_model=UserOut)

@@ -7,8 +7,14 @@
       </div>
       <div class="right">
         <span class="user">{{ userLabel }}</span>
-        <el-button v-if="canManageUsers()" text type="primary" @click="$router.push('/users')">用户管理</el-button>
-        <el-button text type="primary" @click="logout">退出</el-button>
+        <el-button
+          v-if="canManageUsers()"
+          class="topbar-action"
+          :class="{ 'is-current': route.name === 'users' }"
+          :aria-current="route.name === 'users' ? 'page' : undefined"
+          @click="$router.push('/users')"
+        >用户管理</el-button>
+        <el-button class="topbar-action" @click="logout">退出</el-button>
       </div>
     </header>
     <div class="workspace" :style="{ '--sidebar-width': `${sidebarWidth}px` }">
@@ -198,8 +204,26 @@ onBeforeUnmount(stopResize)
   margin-right: 4px;
 }
 
-.right :deep(.el-button) {
-  color: #fff !important;
+.right :deep(.topbar-action) {
+  --el-button-text-color: #e6fffb;
+  --el-button-bg-color: transparent;
+  --el-button-border-color: transparent;
+  --el-button-hover-text-color: #0e3440;
+  --el-button-hover-bg-color: #ccfbf1;
+  --el-button-hover-border-color: #5eead4;
+  --el-button-active-text-color: #0e3440;
+  --el-button-active-bg-color: #99f6e4;
+  --el-button-active-border-color: #5eead4;
+  --el-button-outline-color: #5eead4;
+  margin-left: 0;
+  font-weight: 600;
+}
+
+.right :deep(.topbar-action.is-current),
+.right :deep(.topbar-action:focus-visible) {
+  color: #0e3440;
+  background-color: #ccfbf1;
+  border-color: #5eead4;
 }
 
 .workspace {

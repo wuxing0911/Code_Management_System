@@ -30,13 +30,26 @@
       <el-table-column label="状态" width="80">
         <template #default="{ row }">{{ row.is_active ? '启用' : '禁用' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260" align="center">
+      <el-table-column label="操作" width="350" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button text type="primary" @click="openEdit(row)">角色与权限</el-button>
-          <el-button text type="primary" @click="toggleActive(row)">
-            {{ row.is_active ? '禁用' : '启用' }}
-          </el-button>
-          <el-button text type="primary" @click="openReset(row)">重置密码</el-button>
+          <div class="user-actions">
+            <el-button text type="primary" @click="openEdit(row)">角色与权限</el-button>
+            <el-button text type="primary" :disabled="row.id === state.user?.id" @click="toggleActive(row)">
+              {{ row.is_active ? '禁用' : '启用' }}
+            </el-button>
+            <el-button text type="primary" @click="openReset(row)">重置密码</el-button>
+            <el-tooltip :disabled="row.id !== state.user?.id" content="不能删除当前登录账号" placement="top">
+              <span class="delete-action">
+                <el-button
+                  text
+                  type="danger"
+                  :disabled="row.id === state.user?.id || deletingUserId !== null"
+                  :loading="deletingUserId === row.id"
+                  @click="removeUser(row)"
+                >删除</el-button>
+              </span>
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -102,13 +115,13 @@
 
 <script setup>
 import { defineComponent, h, onMounted, reactive, ref } from 'vue'
-import { ElCheckbox, ElCheckboxGroup, ElFormItem, ElMessage } from 'element-plus'
+import { ElCheckbox, ElCheckboxGroup, ElFormItem, ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
 import AppLayout from '../components/AppLayout.vue'
 import { ROLE_DEFAULT_PERMISSIONS, useAuth } from '../stores/auth'
 
 const permissionOptions = [
-  { value: 'manage_users', label: '用户管理', description: '创建人员、修改角色权限、启停账号和重置密码' },
+  { value: 'manage_users', label: '用户管理', description: '创建与删除人员、修改角色权限、启停账号和重置密码' },
   { value: 'manage_products', label: '产品管理', description: '新建、编辑和删除产品' },
   { value: 'manage_versions', label: '版本管理', description: '新建、编辑和删除版本' },
   { value: 'upload_files', label: '文件上传', description: '上传程序代码和界面工程' },
@@ -157,6 +170,7 @@ const showCreate = ref(false)
 const showEdit = ref(false)
 const showReset = ref(false)
 const saving = ref(false)
+const deletingUserId = ref(null)
 const resetPassword = ref('')
 const current = ref(null)
 const form = reactive({ username: '', password: '', role: 'tester', permissions: [] })
@@ -239,6 +253,34 @@ async function toggleActive(row) {
   }
 }
 
+async function removeUser(row) {
+  if (row.id === state.user?.id || deletingUserId.value !== null) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除用户“${row.username}”？删除后该账号将无法登录，且无法撤销。其已上传的版本和文件会保留，上传人关联将被清除。`,
+      '删除用户',
+      {
+        type: 'warning',
+        confirmButtonText: '删除用户',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+      },
+    )
+  } catch {
+    return
+  }
+  deletingUserId.value = row.id
+  try {
+    await api.delete(`/users/${row.id}`)
+    users.value = users.value.filter((user) => user.id !== row.id)
+    ElMessage.success('用户已删除，已有版本和文件已保留')
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '删除失败，请稍后重试')
+  } finally {
+    deletingUserId.value = null
+  }
+}
+
 function openReset(row) {
   current.value = row
   resetPassword.value = ''
@@ -283,6 +325,22 @@ onMounted(load)
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.user-actions :deep(.el-button) {
+  margin-left: 0;
+  padding: 8px;
+}
+
+.delete-action {
+  display: inline-flex;
 }
 
 .no-permission,

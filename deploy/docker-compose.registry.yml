@@ -1,0 +1,43 @@
+# Keep the existing project identity so the source-built containers are replaced,
+# not duplicated. This file is standalone; do not merge it with the build file.
+name: deploy
+
+services:
+  backend:
+    image: registry-1.docker.io/${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY:-vms}:backend-${VMS_VERSION:?Set VMS_VERSION}
+    platform: linux/amd64
+    volumes:
+      - ../data:/data
+    environment:
+      VMS_DATABASE_URL: sqlite:////data/app.db
+      VMS_STORAGE_ROOT: /data/releases
+      VMS_SECRET_KEY: ${VMS_SECRET_KEY:?Set VMS_SECRET_KEY}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3))['status'] == 'ok'"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    image: registry-1.docker.io/${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY:-vms}:frontend-${VMS_VERSION:?Set VMS_VERSION}
+    platform: linux/amd64
+    ports:
+      - "${VMS_HTTP_PORT:-18080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -q -O /dev/null http://127.0.0.1/ && wget -q -O /dev/null http://127.0.0.1/api/health"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped

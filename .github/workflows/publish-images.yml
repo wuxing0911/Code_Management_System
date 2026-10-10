@@ -1,0 +1,83 @@
+name: Publish private Docker images
+
+"on":
+  push:
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY || 'vms' }}
+    steps:
+      - name: Check out release
+        uses: actions/checkout@v6
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" != tag || ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo 'Use a release tag such as v1.0.0; branch builds are not published.' >&2
+            exit 1
+          fi
+
+      - name: Run deployment safety tests
+        run: python3 -m unittest discover -s deploy/tests -v
+
+      - name: Verify that the Docker Hub repository already exists and is private
+        run: python3 deploy/check-private-repository.py
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build both images before pushing either one. A build failure must not
+      # publish only one half of a new release.
+      - name: Build backend for the current x86 NAS
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: ./backend
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}:backend-${{ github.ref_name }}
+
+      - name: Test user deletion and session security inside the backend image
+        shell: bash
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/backend/tests:/tests:ro" \
+            "$DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:backend-$GITHUB_REF_NAME" \
+            python -m unittest discover -s /tests -v
+
+      - name: Build frontend for the current x86 NAS
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: ./frontend
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}:frontend-${{ github.ref_name }}
+
+      - name: Recheck privacy and publish both images
+        shell: bash
+        run: |
+          python3 deploy/check-private-repository.py
+          docker push "$DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:backend-$GITHUB_REF_NAME"
+          docker push "$DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:frontend-$GITHUB_REF_NAME"

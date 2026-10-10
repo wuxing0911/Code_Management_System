@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.auth import hash_password, require_permission
+from app.config import settings
 from app.database import get_db
 from app.models import User
 from app.permissions import (
@@ -86,3 +87,33 @@ def update_user(
     db.commit()
     db.refresh(user)
     return to_user_out(user)
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(require_permission(MANAGE_USERS)),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if user.id == current.id:
+        raise HTTPException(status_code=400, detail="不能删除当前登录账号")
+    # Startup seeds this account when absent. Do not allow deletion to recreate
+    # a default-password administrator on the next service restart.
+    if user.username == settings.default_admin_username:
+        raise HTTPException(status_code=400, detail="不能删除系统初始管理员，可修改其密码或禁用账号")
+    if user.role == "admin" and user.is_active:
+        other_admin = db.query(User).filter(
+            User.role == "admin", User.is_active == 1, User.id != user.id
+        ).first()
+        if not other_admin:
+            raise HTTPException(status_code=400, detail="不能删除最后一个启用的管理员")
+    # Keep products, versions and their files; only detach the nullable uploader
+    # association. Per-user permission overrides are removed by the ORM cascade.
+    for version in list(user.versions):
+        version.uploader = None
+    db.delete(user)
+    db.commit()
+    return Response(status_code=204)

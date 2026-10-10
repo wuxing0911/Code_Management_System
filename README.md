@@ -37,6 +37,10 @@
 
 角色用于提供默认权限。拥有“用户管理”权限的人员可在创建或编辑账号时，继续为指定人员单独勾选用户管理、产品管理、版本管理、文件上传、文件下载和文件删除权限。
 
+用户管理支持删除人员，操作前需要二次确认。不能删除当前登录账号、系统初始管理员或最后一个启用的管理员。删除人员会清除其账号和个人权限，保留已有产品、版本和上传文件，但清除该人员与版本的上传人关联。删除不可撤销，需要保留账号记录时请使用“禁用”。
+
+登录令牌绑定当前账号与密码凭据：删除后即失效，即使以后重新创建同名账号也不会恢复旧令牌；重置密码同样会让旧令牌失效。升级到包含此功能的版本后，已有登录需要重新登录一次，无须修改数据库结构。
+
 | 角色 | 默认权限 |
 |------|------|
 | 管理员 | 用户管理、产品/版本管理、上传下载删除 |
@@ -150,10 +154,12 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 ```bash
 cd deploy
+cp -n .env.example .env
+# 编辑 .env，将 VMS_SECRET_KEY 替换为足够长的随机字符串
 docker compose up -d --build
 ```
 
-访问：http://127.0.0.1:8080  
+访问：http://127.0.0.1:18080
 
 数据与发布文件保存在项目根目录 `data/`。
 
@@ -163,12 +169,14 @@ docker compose up -d --build
 
 推荐使用仓库内已有的 Docker Compose 方案，前后端与 Nginx 一体部署。
 
+飞牛 NAS 如需免源码构建、私有镜像自动发布及带备份的一键升级，见 [Docker Hub 私有镜像部署说明](deploy/PRIVATE-REGISTRY.md)。该方案使用独立的 `docker-compose.registry.yml`，不替换下面的源码构建配置。
+
 ### 1. 准备 ECS
 
 1. 购买 / 使用一台 Linux ECS（Ubuntu 22.04 或 CentOS 7/8 均可）
 2. 建议挂载独立数据盘，用于存放 `data/`（版本文件会随使用增长）
 3. 安全组放行端口：
-   - **8080**（默认 compose 映射），或
+   - **18080**（默认 compose 映射），或
    - **80**（若将映射改为 `80:80`）
 4. 可选：后续绑定域名并配置 HTTPS
 
@@ -221,20 +229,19 @@ git clone <你的仓库地址> /opt/vms
 
 ### 4. 修改生产配置
 
-编辑 `deploy/docker-compose.yml`：
+复制 `deploy/.env.example` 为 `deploy/.env`，在 `.env` 中配置密钥：
 
-```yaml
-environment:
-  VMS_DATABASE_URL: sqlite:////data/app.db
-  VMS_STORAGE_ROOT: /data/releases
-  VMS_SECRET_KEY: 请改成足够长的随机字符串
+```dotenv
+VMS_SECRET_KEY='请改成足够长的随机字符串'
 ```
 
-如需使用 80 端口访问，将：
+`.env` 已被 Git 忽略，不能提交真实密钥。已有部署请保留原密钥；更换密钥会让已有登录失效。
+
+如需使用 80 端口访问，将 `deploy/docker-compose.yml` 中：
 
 ```yaml
 ports:
-  - "8080:80"
+  - "18080:80"
 ```
 
 改为：
@@ -262,7 +269,7 @@ docker compose logs -f
 
 浏览器访问：
 
-- 默认：`http://服务器公网IP:8080`
+- 默认：`http://服务器公网IP:18080`
 - 若改为 80 端口：`http://服务器公网IP`
 
 ### 6. 上线后必做

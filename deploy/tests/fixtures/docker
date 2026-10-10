@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""Docker test double: no Docker daemon, containers, or network are accessed."""
+import json
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+with Path(os.environ["FAKE_EVENTS"]).open("a") as log:
+    log.write(json.dumps(args) + "\n")
+failure = os.environ.get("FAKE_FAIL", "")
+if args[0] == "compose":
+    operation = next(arg for arg in args if arg in {"config", "ps", "pull", "stop", "up"})
+    if operation == "ps" and "--quiet" in args:
+        print("old-backend" if args[-1] == "backend" else "old-frontend")
+    if operation == failure:
+        sys.exit(1)
+elif args[0] == "inspect":
+    template = args[args.index("--format") + 1]
+    if "Running" in template:
+        print("true")
+    elif "Mounts" in template:
+        print(os.environ["FAKE_DATA_DIR"] if failure != "mount" else "/different/data")
+    else:
+        print("sha256:" + ("b" if args[-1] == "old-backend" else "f") * 64)

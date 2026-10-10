@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+from hashlib import sha256
+from hmac import compare_digest
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -24,10 +26,15 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(user: User) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
     return jwt.encode(
-        {"sub": subject, "exp": expire},
+        {
+            "sub": user.username,
+            "uid": user.id,
+            "credential": sha256(user.password_hash.encode()).hexdigest(),
+            "exp": expire,
+        },
         settings.secret_key,
         algorithm=settings.algorithm,
     )
@@ -58,12 +65,22 @@ async def get_current_user(
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         username = payload.get("sub")
-        if not username:
+        if not isinstance(username, str) or not username:
             raise credentials_exception
     except JWTError as exc:
         raise credentials_exception from exc
     user = get_user_by_username(db, username)
     if not user or not user.is_active:
+        raise credentials_exception
+    # A deleted username (and, on SQLite, its ID) may later be reused. Bind the
+    # session to this account's salted password hash so its old token stays dead.
+    # Legacy tokens without this binding require a fresh login after upgrading.
+    credential = payload.get("credential")
+    if (
+        payload.get("uid") != user.id
+        or not isinstance(credential, str)
+        or not compare_digest(credential.encode(), sha256(user.password_hash.encode()).hexdigest().encode())
+    ):
         raise credentials_exception
     return user
 
